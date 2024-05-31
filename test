@@ -1,3 +1,4 @@
+import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -59,7 +60,14 @@ public class PDFPlaceholderReplacer {
                     contentStream.setFont(PDType1Font.HELVETICA, 12);
                     contentStream.beginText();
                     contentStream.newLineAtOffset(25, 725);
-                    contentStream.showText(content);
+
+                    // 按行处理文本
+                    String[] lines = content.split("\r?\n");
+                    for (String line : lines) {
+                        contentStream.showText(line);
+                        contentStream.newLineAtOffset(0, -15);
+                    }
+
                     contentStream.endText();
                 }
             }
