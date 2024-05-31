@@ -8,6 +8,7 @@ import org.apache.pdfbox.text.TextPosition;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class PDFPlaceholderReplacer {
@@ -49,9 +50,12 @@ public class PDFPlaceholderReplacer {
             this.setStartPage(document.getPages().indexOf(page) + 1);
             this.setEndPage(document.getPages().indexOf(page) + 1);
 
+            List<TextPosition> textPositions = new ArrayList<>();
             String content = this.getText(document);
+
+            // 收集文本位置
             if (content.contains(placeholder)) {
-                content = content.replace(placeholder, replacement);
+                this.stripPage(document, page, textPositions);
 
                 // 清空页面内容
                 page.getCOSObject().setItem(COSName.CONTENTS, null);
@@ -59,18 +63,38 @@ public class PDFPlaceholderReplacer {
                 try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
                     contentStream.setFont(PDType1Font.HELVETICA, 12);
                     contentStream.beginText();
-                    contentStream.newLineAtOffset(25, 725);
 
-                    // 按行处理文本
-                    String[] lines = content.split("\r?\n");
-                    for (String line : lines) {
-                        contentStream.showText(line);
-                        contentStream.newLineAtOffset(0, -15);
+                    // 替换并写入文本
+                    for (TextPosition textPosition : textPositions) {
+                        String text = textPosition.getUnicode();
+                        if (text.contains(placeholder)) {
+                            text = text.replace(placeholder, replacement);
+                        }
+                        contentStream.newLineAtOffset(textPosition.getXDirAdj(), textPosition.getYDirAdj());
+                        contentStream.showText(text);
                     }
 
                     contentStream.endText();
                 }
             }
+        }
+
+        private void stripPage(PDDocument document, PDPage page, List<TextPosition> textPositions) throws IOException {
+            this.setStartPage(document.getPages().indexOf(page) + 1);
+            this.setEndPage(document.getPages().indexOf(page) + 1);
+            this.setTextPositions(textPositions);
+            this.writeText(document, null);
+        }
+
+        private void setTextPositions(List<TextPosition> textPositions) {
+            this.textPositions = textPositions;
+        }
+
+        private List<TextPosition> textPositions;
+
+        @Override
+        protected void writeString(String string, List<TextPosition> textPositions) {
+            this.textPositions.addAll(textPositions);
         }
     }
 }
