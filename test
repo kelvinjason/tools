@@ -1,100 +1,58 @@
-import org.apache.pdfbox.cos.COSName;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.pdmodel.PDPageContentStream;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
-import org.apache.pdfbox.text.PDFTextStripper;
-import org.apache.pdfbox.text.TextPosition;
+import com.itextpdf.kernel.pdf.*;
+import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.property.TextAlignment;
+import com.itextpdf.kernel.geom.Rectangle;
+import com.itextpdf.kernel.font.PdfFont;
+import com.itextpdf.kernel.font.PdfFontFactory;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
-public class PDFPlaceholderReplacer {
-
-    public static void main(String[] args) {
+public class PdfTemplateFiller {
+    public static void main(String[] args) throws IOException {
         String templatePath = "path/to/your/template.pdf";
         String outputPath = "path/to/output/filled.pdf";
 
-        try (PDDocument document = PDDocument.load(new File(templatePath))) {
-            PlaceholderPDFTextStripper stripper = new PlaceholderPDFTextStripper("<name>", "kelvin");
-            stripper.setSortByPosition(true);
+        PdfDocument pdfDoc = new PdfDocument(new PdfReader(templatePath), new PdfWriter(outputPath));
+        Document document = new Document(pdfDoc);
 
-            // 遍历每一页并处理占位符
-            for (PDPage page : document.getPages()) {
-                stripper.setStartPage(document.getPages().indexOf(page) + 1);
-                stripper.setEndPage(document.getPages().indexOf(page) + 1);
-                stripper.replaceText(document, page);
-            }
+        String placeholder = "<cust_name>"; // 占位符文本
+        String replacementText = "John Doe"; // 要替换的文本
 
-            document.save(outputPath);
-            System.out.println("PDF placeholders replaced and saved successfully.");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+        PdfFont font = PdfFontFactory.createFont("STSongStd-Light", "UniGB-UCS2-H", false);
 
-    static class PlaceholderPDFTextStripper extends PDFTextStripper {
+        for (int i = 0; i < pdfDoc.getNumberOfPages(); i++) {
+            PdfPage page = pdfDoc.getPage(i + 1);
+            Rectangle rect = page.getPageSize();
+            PdfCanvas pdfCanvas = new PdfCanvas(page);
 
-        private final String placeholder;
-        private final String replacement;
-
-        public PlaceholderPDFTextStripper(String placeholder, String replacement) throws IOException {
-            this.placeholder = placeholder;
-            this.replacement = replacement;
-        }
-
-        public void replaceText(PDDocument document, PDPage page) throws IOException {
-            this.setSortByPosition(true);
-            this.setStartPage(document.getPages().indexOf(page) + 1);
-            this.setEndPage(document.getPages().indexOf(page) + 1);
-
-            List<TextPosition> textPositions = new ArrayList<>();
-            String content = this.getText(document);
-
-            // 收集文本位置
+            String content = new String(pdfCanvas.getContentStream().toByteArray());
             if (content.contains(placeholder)) {
-                this.stripPage(document, page, textPositions);
+                content = content.replace(placeholder, replacementText);
+                pdfCanvas.release();
+                pdfCanvas = new PdfCanvas(page.newContentStreamBefore(), page.getResources(), pdfDoc);
 
-                // 清空页面内容
-                page.getCOSObject().setItem(COSName.CONTENTS, null);
-
-                try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
-                    contentStream.setFont(PDType1Font.HELVETICA, 12);
-                    contentStream.beginText();
-
-                    // 替换并写入文本
-                    for (TextPosition textPosition : textPositions) {
-                        String text = textPosition.getUnicode();
-                        if (text.contains(placeholder)) {
-                            text = text.replace(placeholder, replacement);
-                        }
-                        contentStream.newLineAtOffset(textPosition.getXDirAdj(), textPosition.getYDirAdj());
-                        contentStream.showText(text);
-                    }
-
-                    contentStream.endText();
-                }
+                Paragraph paragraph = new Paragraph(content).setFont(font).setFontSize(12).setTextAlignment(TextAlignment.LEFT);
+                document.showTextAligned(paragraph, rect.getLeft(), rect.getTop(), i + 1);
             }
         }
 
-        private void stripPage(PDDocument document, PDPage page, List<TextPosition> textPositions) throws IOException {
-            this.setStartPage(document.getPages().indexOf(page) + 1);
-            this.setEndPage(document.getPages().indexOf(page) + 1);
-            this.setTextPositions(textPositions);
-            this.writeText(document, null);
-        }
-
-        private void setTextPositions(List<TextPosition> textPositions) {
-            this.textPositions = textPositions;
-        }
-
-        private List<TextPosition> textPositions;
-
-        @Override
-        protected void writeString(String string, List<TextPosition> textPositions) {
-            this.textPositions.addAll(textPositions);
-        }
+        document.close();
+        pdfDoc.close();
     }
 }
+<dependency>
+    <groupId>com.itextpdf</groupId>
+    <artifactId>kernel</artifactId>
+    <version>7.1.15</version>
+</dependency>
+<dependency>
+    <groupId>com.itextpdf</groupId>
+    <artifactId>layout</artifactId>
+    <version>7.1.15</version>
+</dependency>
+<dependency>
+    <groupId>com.itextpdf</groupId>
+    <artifactId>forms</artifactId>
+    <version>7.1.15</version>
+</dependency>
