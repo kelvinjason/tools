@@ -1,58 +1,90 @@
-import com.itextpdf.kernel.pdf.*;
-import com.itextpdf.layout.Document;
-import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.property.TextAlignment;
-import com.itextpdf.kernel.geom.Rectangle;
-import com.itextpdf.kernel.font.PdfFont;
-import com.itextpdf.kernel.font.PdfFontFactory;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import com.itextpdf.text.*;
+import com.itextpdf.text.pdf.*;
 
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 
-public class PdfTemplateFiller {
-    public static void main(String[] args) throws IOException {
-        String templatePath = "path/to/your/template.pdf";
+public class ExcelToPdf {
+    public static void main(String[] args) {
+        String templatePath = "path/to/your/template.xlsx";
         String outputPath = "path/to/output/filled.pdf";
+        String placeholder = "<cust_name>";
+        String replacement = "Customer Name";
 
-        PdfDocument pdfDoc = new PdfDocument(new PdfReader(templatePath), new PdfWriter(outputPath));
-        Document document = new Document(pdfDoc);
+        try (FileInputStream fis = new FileInputStream(templatePath);
+             Workbook workbook = new XSSFWorkbook(fis)) {
+            Sheet sheet = workbook.getSheetAt(0);
 
-        String placeholder = "<cust_name>"; // 占位符文本
-        String replacementText = "John Doe"; // 要替换的文本
-
-        PdfFont font = PdfFontFactory.createFont("STSongStd-Light", "UniGB-UCS2-H", false);
-
-        for (int i = 0; i < pdfDoc.getNumberOfPages(); i++) {
-            PdfPage page = pdfDoc.getPage(i + 1);
-            Rectangle rect = page.getPageSize();
-            PdfCanvas pdfCanvas = new PdfCanvas(page);
-
-            String content = new String(pdfCanvas.getContentStream().toByteArray());
-            if (content.contains(placeholder)) {
-                content = content.replace(placeholder, replacementText);
-                pdfCanvas.release();
-                pdfCanvas = new PdfCanvas(page.newContentStreamBefore(), page.getResources(), pdfDoc);
-
-                Paragraph paragraph = new Paragraph(content).setFont(font).setFontSize(12).setTextAlignment(TextAlignment.LEFT);
-                document.showTextAligned(paragraph, rect.getLeft(), rect.getTop(), i + 1);
+            for (Row row : sheet) {
+                for (Cell cell : row) {
+                    if (cell.getCellType() == CellType.STRING) {
+                        String cellValue = cell.getStringCellValue();
+                        if (cellValue.contains(placeholder)) {
+                            cell.setCellValue(cellValue.replace(placeholder, replacement));
+                        }
+                    }
+                }
             }
-        }
 
-        document.close();
-        pdfDoc.close();
+            // Write the modified workbook to a temporary Excel file
+            try (FileOutputStream fos = new FileOutputStream("temp.xlsx")) {
+                workbook.write(fos);
+            }
+
+            // Convert the temporary Excel file to PDF
+            convertExcelToPdf("temp.xlsx", outputPath);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void convertExcelToPdf(String excelPath, String pdfPath) {
+        try (FileInputStream fis = new FileInputStream(excelPath);
+             Workbook workbook = new XSSFWorkbook(fis)) {
+
+            Document document = new Document();
+            PdfWriter.getInstance(document, new FileOutputStream(pdfPath));
+            document.open();
+
+            for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+                Sheet sheet = workbook.getSheetAt(i);
+                PdfPTable table = new PdfPTable(sheet.getRow(0).getPhysicalNumberOfCells());
+
+                for (Row row : sheet) {
+                    for (Cell cell : row) {
+                        table.addCell(cell.toString());
+                    }
+                }
+                document.add(table);
+                document.newPage();
+            }
+
+            document.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
-<dependency>
-    <groupId>com.itextpdf</groupId>
-    <artifactId>kernel</artifactId>
-    <version>7.1.15</version>
-</dependency>
-<dependency>
-    <groupId>com.itextpdf</groupId>
-    <artifactId>layout</artifactId>
-    <version>7.1.15</version>
-</dependency>
-<dependency>
-    <groupId>com.itextpdf</groupId>
-    <artifactId>forms</artifactId>
-    <version>7.1.15</version>
-</dependency>
+
+
+<dependencies>
+    <dependency>
+        <groupId>org.apache.poi</groupId>
+        <artifactId>poi</artifactId>
+        <version>5.2.3</version>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.poi</groupId>
+        <artifactId>poi-ooxml</artifactId>
+        <version>5.2.3</version>
+    </dependency>
+    <dependency>
+        <groupId>com.itextpdf</groupId>
+        <artifactId>itextpdf</artifactId>
+        <version>5.5.13.2</version>
+    </dependency>
+</dependencies>
