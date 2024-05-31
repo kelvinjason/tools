@@ -20,10 +20,10 @@ public class PDFPlaceholderReplacer {
             stripper.setSortByPosition(true);
 
             // 遍历每一页并处理占位符
-            for (int pageIndex = 0; pageIndex < document.getNumberOfPages(); pageIndex++) {
-                stripper.setStartPage(pageIndex + 1);
-                stripper.setEndPage(pageIndex + 1);
-                stripper.writeText(document, null);
+            for (PDPage page : document.getPages()) {
+                stripper.setStartPage(document.getPages().indexOf(page) + 1);
+                stripper.setEndPage(document.getPages().indexOf(page) + 1);
+                stripper.replaceText(document, page);
             }
 
             document.save(outputPath);
@@ -43,18 +43,25 @@ public class PDFPlaceholderReplacer {
             this.replacement = replacement;
         }
 
-        @Override
-        protected void writeString(String text, List<TextPosition> textPositions) throws IOException {
-            if (text.contains(placeholder)) {
-                String replacedText = text.replace(placeholder, replacement);
-                PDPageContentStream contentStream = new PDPageContentStream(
-                        getDocument(), getCurrentPage(), PDPageContentStream.AppendMode.APPEND, true);
-                contentStream.setFont(PDType1Font.HELVETICA, 12);
-                contentStream.beginText();
-                contentStream.setTextMatrix(textPositions.get(0).getTextMatrix());
-                contentStream.showText(replacedText);
-                contentStream.endText();
-                contentStream.close();
+        public void replaceText(PDDocument document, PDPage page) throws IOException {
+            this.setSortByPosition(true);
+            this.setStartPage(document.getPages().indexOf(page) + 1);
+            this.setEndPage(document.getPages().indexOf(page) + 1);
+
+            String content = this.getText(document);
+            if (content.contains(placeholder)) {
+                content = content.replace(placeholder, replacement);
+
+                // 清空页面内容
+                page.getCOSObject().setItem(COSName.CONTENTS, null);
+
+                try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+                    contentStream.setFont(PDType1Font.HELVETICA, 12);
+                    contentStream.beginText();
+                    contentStream.newLineAtOffset(25, 725);
+                    contentStream.showText(content);
+                    contentStream.endText();
+                }
             }
         }
     }
