@@ -8,6 +8,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 
 public class ExcelToPdf {
+}
     public static void main(String[] args) {
         String templatePath = "path/to/your/template.xlsx";
         String outputPath = "path/to/output/filled.pdf";
@@ -16,7 +17,7 @@ public class ExcelToPdf {
 
         try (FileInputStream fis = new FileInputStream(templatePath);
              Workbook workbook = new XSSFWorkbook(fis)) {
-            Sheet sheet = workbook.getSheetAt(0);
+             Sheet sheet = workbook.getSheetAt(0);
 
             for (Row row : sheet) {
                 for (Cell cell : row) {
@@ -69,22 +70,3 @@ public class ExcelToPdf {
         }
     }
 }
-
-
-<dependencies>
-    <dependency>
-        <groupId>org.apache.poi</groupId>
-        <artifactId>poi</artifactId>
-        <version>5.2.3</version>
-    </dependency>
-    <dependency>
-        <groupId>org.apache.poi</groupId>
-        <artifactId>poi-ooxml</artifactId>
-        <version>5.2.3</version>
-    </dependency>
-    <dependency>
-        <groupId>com.itextpdf</groupId>
-        <artifactId>itextpdf</artifactId>
-        <version>5.5.13.2</version>
-    </dependency>
-</dependencies>
